@@ -404,7 +404,7 @@ calculateXcmsSet <- function(files,
     #     #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
     #   )
     
-    cent.tab<-ldply(files, function(file.j){
+    cent.tab<-plyr::ldply(files[sample(1:length(files),max(3,length(files)))], function(file.j){
       raw<-xcms::xcmsRaw(filename = file.j,mslevel = 1)
       length(xcms::getScan(raw,length(raw@scantime)/2))>2
       quantile(diff(xcms::getScan(raw, length(raw@scantime)/2)[,"mz"]),.25)>0.025
@@ -412,16 +412,16 @@ calculateXcmsSet <- function(files,
     
     cent.tab<-c(cent.tab)
     is.cent<-as.logical(names(table(cent.tab))[which.max(table(cent.tab))])
-    cat(paste('Data is centroided ?:', is.cent))
+    cat(paste('Data is centroided ?:', is.cent,'\n'))
     
     if (!is.cent){
       
       cat('Centroiding data...')
-      msDat<-readMSData(files,msLevel. = 1,mode = "onDisk")
-      msDat<-msDat %>% smooth(method='SavitzkyGolay') #%>% 
+      msDat<-MSnbase::readMSData(files,msLevel. = 1,mode = "onDisk")
+      msDat <-msDat %>% xcms::smooth(method='SavitzkyGolay') #%>% 
       cat('done!\n')   
       
-      pwd<- CentWaveParam( peakwidth = c(xcmsSetParameters$min_peakwidth[task],
+      pwd<- xcms::CentWaveParam( peakwidth = c(xcmsSetParameters$min_peakwidth[task],
                                          xcmsSetParameters$max_peakwidth[task]),
                            ppm         = xcmsSetParameters$ppm[task],
                            noise       = xcmsSetParameters$noise[task],
@@ -441,7 +441,7 @@ calculateXcmsSet <- function(files,
                            #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
       )
       
-      fCP<-findChromPeaks(msDat,BPPARAM =BPPARAM , param = pwd)
+      fCP<-xcms::findChromPeaks(msDat,BPPARAM =BPPARAM , param = pwd)
       xset<- as(fCP,"xcmsSet")
       
     } else {
