@@ -1,68 +1,68 @@
 calcPPS <- function(xset, isotopeIdentification=c("IPO", "CAMERA"), ...) {
+  
+  isotopeIdentification <- match.arg(isotopeIdentification)
+  
+  ret <- vector(mode="numeric", 5) #array(0, dim=c(1,5)) 
+  names(ret) <- c("ExpId", "#peaks", "#NonRP", "#RP", "PPS")
+  if(is.null(xset)) {
+    return(ret)
+  } 
+  
+  if(nrow(peaks_IPO(xset)) == 0) {
+    return(ret)
+  }
+  
+  peak_source <- peaks_IPO(xset)[,c("mz", "rt", "sample", "into", "mzmin", 
+                                    "mzmax", "rtmin", "rtmax"),drop=FALSE]
+  ret[2] <- nrow(peak_source)
+  
+  if(isotopeIdentification == "IPO")
+    iso_mat <- findIsotopes.IPO(xset, ...)  
+  else
+    iso_mat <- findIsotopes.CAMERA(xset, ...)
+  
+  samples <- unique(peak_source[,"sample"])
+  isotope_abundance = 0.01108    
+  
+  #calculating low intensity peaks
+  for(sample in samples) {
+    non_isos_peaks <- peak_source
     
-    isotopeIdentification <- match.arg(isotopeIdentification)
-    
-    ret <- vector(mode="numeric", 5) #array(0, dim=c(1,5)) 
-    names(ret) <- c("ExpId", "#peaks", "#NonRP", "#RP", "PPS")
-    if(is.null(xset)) {
-      return(ret)
+    if(nrow(iso_mat) > 0) {
+      non_isos_peaks <- peak_source[-unique(c(iso_mat)),,drop=FALSE] 
     } 
     
-    if(nrow(peaks_IPO(xset)) == 0) {
-      return(ret)
+    speaks <- non_isos_peaks[non_isos_peaks[,"sample"]==sample,,drop=FALSE]
+    intensities <- speaks[,"into"]
+    na_int <- is.na(intensities)
+    intensities <- intensities[!na_int]
+    
+    if(length(intensities)>0) {
+      tmp <- intensities[order(intensities)]
+      int_cutoff <- mean(tmp[1:max(round((length(tmp)/33),0),1)])
+      
+      masses <- speaks[!na_int, "mz"]
+      #floor((masses-2*CH3)/CH2) + 2
+      maximum_carbon <- calcMaximumCarbon(masses)
+      carbon_probabilty <- maximum_carbon*isotope_abundance
+      
+      iso_int <- intensities * carbon_probabilty
+      
+      not_loq_peaks <- sum(iso_int>int_cutoff)
+      ret[3] <- ret[3] + not_loq_peaks
     }
-    
-    peak_source <- peaks_IPO(xset)[,c("mz", "rt", "sample", "into", "mzmin", 
-                                 "mzmax", "rtmin", "rtmax"),drop=FALSE]
-    ret[2] <- nrow(peak_source)
-    
-    if(isotopeIdentification == "IPO")
-      iso_mat <- findIsotopes.IPO(xset, ...)  
-    else
-      iso_mat <- findIsotopes.CAMERA(xset, ...)
-    
-    samples <- unique(peak_source[,"sample"])
-    isotope_abundance = 0.01108    
-    
-    #calculating low intensity peaks
-    for(sample in samples) {
-      non_isos_peaks <- peak_source
-      
-      if(nrow(iso_mat) > 0) {
-        non_isos_peaks <- peak_source[-unique(c(iso_mat)),,drop=FALSE] 
-      } 
-	  
-      speaks <- non_isos_peaks[non_isos_peaks[,"sample"]==sample,,drop=FALSE]
-      intensities <- speaks[,"into"]
-	    na_int <- is.na(intensities)
-	    intensities <- intensities[!na_int]
-      
-	    if(length(intensities)>0) {
-        tmp <- intensities[order(intensities)]
-        int_cutoff <- mean(tmp[1:max(round((length(tmp)/33),0),1)])
-      
-        masses <- speaks[!na_int, "mz"]
-        #floor((masses-2*CH3)/CH2) + 2
-        maximum_carbon <- calcMaximumCarbon(masses)
-        carbon_probabilty <- maximum_carbon*isotope_abundance
-      
-        iso_int <- intensities * carbon_probabilty
-      
-        not_loq_peaks <- sum(iso_int>int_cutoff)
-        ret[3] <- ret[3] + not_loq_peaks
-      }
-    }#end_for_sample    
-    
-    ret[4] <- length(unique(c(iso_mat)))
-    if(ret[3] == 0) {
-      ret[5] <- (ret[4]+1)^2/(ret[3]+1)  
-    } else {    
-      ret[5] <- ret[4]^2/ret[3]  
-    }
-    
-    return(ret)
-    
+  }#end_for_sample    
+  
+  ret[4] <- length(unique(c(iso_mat)))
+  if(ret[3] == 0) {
+    ret[5] <- (ret[4]+1)^2/(ret[3]+1)  
+  } else {    
+    ret[5] <- ret[4]^2/ret[3]  
   }
+  
+  return(ret)
+  
+}
 
 
 
@@ -80,7 +80,7 @@ findIsotopes.IPO <-
     
     colnames(iso_mat) <- c("12C", "13C")
     peak_source <- peaks_IPO(xset)[,c("mz", "rt", "sample", "into", "maxo", "mzmin",
-                                 "mzmax", "rtmin", "rtmax"), drop=FALSE]
+                                      "mzmax", "rtmin", "rtmax"), drop=FALSE]
     
     for(i in 1:ncol(peak_source)) {
       peak_source <- peak_source[!is.na(peak_source[,i]),,drop=FALSE]
@@ -103,7 +103,7 @@ findIsotopes.IPO <-
       #only looking into peaks from current sample   
       speaks <- peak_source[peak_source[,"sample"]==sample,,drop=FALSE]
       split <- 250
-	  if(!(checkPeakShape=="none"))
+      if(!(checkPeakShape=="none"))
         rawdata <- loadRaw(xcmsSource(filepaths(xset)[sample]))
       
       if(nrow(speaks)>1) {  		      
@@ -180,7 +180,7 @@ findIsotopes.IPO <-
                   }
                 }
               } #else {
-                #boundary_bool <- rep(TRUE, (nrow(int_peaks)+1))
+              #boundary_bool <- rep(TRUE, (nrow(int_peaks)+1))
               #}              
               if(boundary_bool[1] & sum(boundary_bool[-1])>0) {                 
                 iso_peaks <- int_peaks[boundary_bool[-1],,drop=FALSE]
@@ -206,56 +206,56 @@ checkIntensitiesAtRtBoundaries <-
            peaks, 
            minBoundaryToMaxo=1/3, 
            ppmstep=15) {
-  ret <- rep(TRUE, nrow(peaks))
-  for(i in 1:nrow(peaks)) {
-    peak <- peaks[i,]
-    for(boundary in c("rtmin", "rtmax")) {
-      rtIndex <- which(rawdata$rt==peak[boundary])
-      if(length(rtIndex)>0) {
-        if(rtIndex==length(rawdata$scanindex)) {
-          rtIndices <- c(rawdata$scanindex[rtIndex], length(rawdata$mz))
-        } else {
-          rtIndices <- rawdata$scanindex[c(rtIndex, rtIndex+1)]
+    ret <- rep(TRUE, nrow(peaks))
+    for(i in 1:nrow(peaks)) {
+      peak <- peaks[i,]
+      for(boundary in c("rtmin", "rtmax")) {
+        rtIndex <- which(rawdata$rt==peak[boundary])
+        if(length(rtIndex)>0) {
+          if(rtIndex==length(rawdata$scanindex)) {
+            rtIndices <- c(rawdata$scanindex[rtIndex], length(rawdata$mz))
+          } else {
+            rtIndices <- rawdata$scanindex[c(rtIndex, rtIndex+1)]
+          }
+          
+          #only relevant mz and intensity values regarding retention time
+          mz <- rawdata$mz[(rtIndices[1]+1):rtIndices[2]]	
+          intensities <- rawdata$intensity[(rtIndices[1]+1):rtIndices[2]]
+          
+          ppm <- peak[c("mzmin", "mzmax")]*ppmstep/1000000
+          mzIntensities <- 
+            c(0, intensities[mz>=peak["mzmin"]-ppm[1] & mz<=peak["mzmax"]+ppm[2]])
+          maxBoundaryIntensity <- max(mzIntensities)
+          ret[i] <- ret[i] & maxBoundaryIntensity<peak["maxo"]*minBoundaryToMaxo
         }
-        
-        #only relevant mz and intensity values regarding retention time
-        mz <- rawdata$mz[(rtIndices[1]+1):rtIndices[2]]	
-        intensities <- rawdata$intensity[(rtIndices[1]+1):rtIndices[2]]
-        
-        ppm <- peak[c("mzmin", "mzmax")]*ppmstep/1000000
-        mzIntensities <- 
-          c(0, intensities[mz>=peak["mzmin"]-ppm[1] & mz<=peak["mzmax"]+ppm[2]])
-        maxBoundaryIntensity <- max(mzIntensities)
-        ret[i] <- ret[i] & maxBoundaryIntensity<peak["maxo"]*minBoundaryToMaxo
       }
     }
+    
+    return(ret)
+    
+  }
+
+checkSinusDistribution <- function(rawdata, peaks) {
+  ret <- rep(TRUE, nrow(peaks))
+  for(i in 1:nrow(peaks)) {
+    ret[i] <- testSinusDistribution(rawdata, peaks[i,,drop=FALSE])
   }
   
   return(ret)
-  
-}
-
-checkSinusDistribution <- function(rawdata, peaks) {
- ret <- rep(TRUE, nrow(peaks))
- for(i in 1:nrow(peaks)) {
-   ret[i] <- testSinusDistribution(rawdata, peaks[i,,drop=FALSE])
- }
- 
- return(ret)
 }
 
 checkNormalDistribution <- function(rawdata, peaks) {
- ret <- rep(TRUE, nrow(peaks))
- for(i in 1:nrow(peaks)) {
-   ret[i] <- testNormalDistribution(rawdata, peaks[i,,drop=FALSE])
- }
- 
- return(ret)
+  ret <- rep(TRUE, nrow(peaks))
+  for(i in 1:nrow(peaks)) {
+    ret[i] <- testNormalDistribution(rawdata, peaks[i,,drop=FALSE])
+  }
+  
+  return(ret)
 }
 
 getIntensitiesFromRawdata <- function(rawdata, peak) {
   rt <- rawdata$rt >= peak[,"rtmin"] & rawdata$rt <= peak[,"rtmax"]
-
+  
   rtRange <- c(min(which(rt)), max(which(rt))+1)  
   scanIndices <- 
     rawdata$scanindex[rtRange[1]:min(rtRange[2], length(rawdata$scanindex))]
@@ -275,15 +275,15 @@ getIntensitiesFromRawdata <- function(rawdata, peak) {
       c(y, 
         max(0, (rawdata$intensity[scanRange[1]:scanRange[2]][
           mz >= peak[,"mzmin"] & mz <= peak[,"mzmax"]])
-            )
         )
+      )
   }
   
   y
 }
 
 testNormalDistribution <- function(rawdata, peak) {
-
+  
   y <- getIntensitiesFromRawdata(rawdata, peak)
   if(length(y) < 3) {
     return(FALSE)
@@ -297,19 +297,19 @@ testNormalDistribution <- function(rawdata, peak) {
   
   mean=10; 
   sd=3;
-
+  
   seqModel <- seq(-4,4,length=length(normY))*sd + mean
   yModel <- dnorm(seqModel,mean,sd)
   yModel = yModel* (1/max(yModel))
   correlation <- cor(yModel, normY)
-
+  
   correlation > 0.7
-
+  
   
 }
 
 testSinusDistribution <- function(rawdata, peak) {
-
+  
   y <- getIntensitiesFromRawdata(rawdata, peak)
   if(length(y) < 3) {
     return(FALSE)
@@ -317,11 +317,11 @@ testSinusDistribution <- function(rawdata, peak) {
   if(max(y)==0) {
     return(FALSE)
   }
-
+  
   normY <- (y-min(y))/(max(y)-min(y))
   sinCurve <- (sin(seq(-pi/2,pi+1.5,length=length(normY))) + 1) / 2
   correlation <- cor(sinCurve, normY)
-
+  
   correlation > 0.7
   
 }
@@ -380,29 +380,95 @@ calculateXcmsSet <- function(files,
   
   if (is.null(xcmsSetParameters$step)) {
     # centWave
-    xset <-
-      xcms::xcmsSet(
-        files = files,
-        method = "centWave",
-        peakwidth = c(xcmsSetParameters$min_peakwidth[task],
-                      xcmsSetParameters$max_peakwidth[task]),
-        ppm         = xcmsSetParameters$ppm[task],
-        noise       = xcmsSetParameters$noise[task],
-        snthresh    = xcmsSetParameters$snthresh[task],
-        mzdiff      = xcmsSetParameters$mzdiff[task],
-        prefilter   = c(
-          xcmsSetParameters$prefilter[task],
-          xcmsSetParameters$value_of_prefilter[task]
-        ),
-        mzCenterFun = xcmsSetParameters$mzCenterFun[task],
-        integrate   = xcmsSetParameters$integrate[task],
-        fitgauss    = xcmsSetParameters$fitgauss[task],
-        verbose.columns =
-          xcmsSetParameters$verbose.columns[task],
-        BPPARAM = BPPARAM,
-        scanrange   = scanrange#,
-        #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
+    # xset <-
+    #   xcms::xcmsSet(
+    #     files = files,
+    #     method = "centWave",
+    #     peakwidth = c(xcmsSetParameters$min_peakwidth[task],
+    #                   xcmsSetParameters$max_peakwidth[task]),
+    #     ppm         = xcmsSetParameters$ppm[task],
+    #     noise       = xcmsSetParameters$noise[task],
+    #     snthresh    = xcmsSetParameters$snthresh[task],
+    #     mzdiff      = xcmsSetParameters$mzdiff[task],
+    #     prefilter   = c(
+    #       xcmsSetParameters$prefilter[task],
+    #       xcmsSetParameters$value_of_prefilter[task]
+    #     ),
+    #     mzCenterFun = xcmsSetParameters$mzCenterFun[task],
+    #     integrate   = xcmsSetParameters$integrate[task],
+    #     fitgauss    = xcmsSetParameters$fitgauss[task],
+    #     verbose.columns =
+    #       xcmsSetParameters$verbose.columns[task],
+    #     BPPARAM = BPPARAM,
+    #     scanrange   = scanrange#,
+    #     #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
+    #   )
+    
+    cent.tab<-ldply(files, function(file.j){
+      raw<-xcms::xcmsRaw(filename = file.j,mslevel = 1)
+      length(xcms::getScan(raw,length(raw@scantime)/2))>2
+      quantile(diff(xcms::getScan(raw, length(raw@scantime)/2)[,"mz"]),.25)>0.025
+    })[,1]
+    
+    cent.tab<-c(cent.tab)
+    is.cent<-as.logical(names(table(cent.tab))[which.max(table(cent.tab))])
+    cat(paste('Data is centroided ?:', is.cent))
+    
+    if (!is.cent){
+      
+      cat('Centroiding data...')
+      msDat<-readMSData(files,msLevel. = 1,mode = "onDisk")
+      msDat<-msDat %>% smooth(method='SavitzkyGolay') #%>% 
+      cat('done!\n')   
+      
+      pwd<- CentWaveParam( peakwidth = c(xcmsSetParameters$min_peakwidth[task],
+                                         xcmsSetParameters$max_peakwidth[task]),
+                           ppm         = xcmsSetParameters$ppm[task],
+                           noise       = xcmsSetParameters$noise[task],
+                           snthresh    = xcmsSetParameters$snthresh[task],
+                           mzdiff      = xcmsSetParameters$mzdiff[task],
+                           prefilter   = c(
+                             xcmsSetParameters$prefilter[task],
+                             xcmsSetParameters$value_of_prefilter[task]
+                           ),
+                           mzCenterFun = xcmsSetParameters$mzCenterFun[task],
+                           integrate   = xcmsSetParameters$integrate[task],
+                           fitgauss    = xcmsSetParameters$fitgauss[task]#,
+                           # verbose.columns =
+                           #   xcmsSetParameters$verbose.columns[task],
+                           # BPPARAM = BPPARAM,
+                           # scanrange   = scanrange#,
+                           #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
       )
+      
+      fCP<-findChromPeaks(msDat,BPPARAM =BPPARAM , param = pwd)
+      xset<- as(fCP,"xcmsSet")
+      
+    } else {
+      xset <-
+        xcms::xcmsSet(
+          files = files,
+          method = "centWave",
+          peakwidth = c(xcmsSetParameters$min_peakwidth[task],
+                        xcmsSetParameters$max_peakwidth[task]),
+          ppm         = xcmsSetParameters$ppm[task],
+          noise       = xcmsSetParameters$noise[task],
+          snthresh    = xcmsSetParameters$snthresh[task],
+          mzdiff      = xcmsSetParameters$mzdiff[task],
+          prefilter   = c(
+            xcmsSetParameters$prefilter[task],
+            xcmsSetParameters$value_of_prefilter[task]
+          ),
+          mzCenterFun = xcmsSetParameters$mzCenterFun[task],
+          integrate   = xcmsSetParameters$integrate[task],
+          fitgauss    = xcmsSetParameters$fitgauss[task],
+          verbose.columns =
+            xcmsSetParameters$verbose.columns[task],
+          BPPARAM = BPPARAM,
+          scanrange   = scanrange#,
+          #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
+        )
+    }
     
   } else {
     #matchedFilter
@@ -441,7 +507,7 @@ checkXcmsSetParams <-
         c("integrate", "fitgauss", "verbose.columns", "mzCenterFun")
       unsupported_parameters <- 
         c("sleep", "ROI.list") # "scanrange" can only be set,
-                               # but not optimized
+      # but not optimized
     } else {    
       quantitative_parameters <- 
         c("fwhm", "sigma", "max", "snthresh", "step", "steps", "mzdiff")
@@ -474,7 +540,7 @@ getDefaultXcmsSetStartingParams <-
                   fitgauss           = FALSE, 
                   verbose.columns    = FALSE#, 
                   #nSlaves            = 0
-                  ))
+      ))
     
     if(method=="matchedFilter")
       return(list(fwhm     = c(25,35), 
@@ -486,7 +552,7 @@ getDefaultXcmsSetStartingParams <-
                   mzdiff   = 0, 
                   index    = FALSE#, 
                   #nSlaves  = 0
-                  )) 
+      )) 
   }
 
 
@@ -752,61 +818,47 @@ xcmsSetExperimentsCluster <-
            BPPARAM = bpparam(),
            nSlaves=4, 
            ...) { 
-
-  typ_params <- typeCastParams(params) 
-
-  if(length(typ_params$to_optimize)>1) {
-    design <- getCcdParameter(typ_params$to_optimize)  	
-    xcms_design <- decode.data(design) 
-  } else {
-    design <- data.frame(run.order=1:9, a=seq(-1,1,0.25))
+    
+    typ_params <- typeCastParams(params) 
+    
+    if(length(typ_params$to_optimize)>1) {
+      design <- getCcdParameter(typ_params$to_optimize)  	
+      xcms_design <- decode.data(design) 
+    } else {
+      design <- data.frame(run.order=1:9, a=seq(-1,1,0.25))
       colnames(design)[2] <- names(typ_params$to_optimize)
       xcms_design <- design
       xcms_design[,2] <- 
         seq(min(typ_params$to_optimize[[1]]), 
             max(typ_params$to_optimize[[1]]), 
             diff(typ_params$to_optimize[[1]])/8)
-  }
-
-  xcms_design <- combineParams(xcms_design, typ_params$no_optimization)   
-  tasks <- 1:nrow(design)  
-  
-  if(nSlaves > 1) {
-    # unload snow (if loaded) to prevent conflicts with usage of
-    # package 'parallel'
-    if('snow' %in% rownames(installed.packages()))
-      unloadNamespace("snow")
-    
-    cl_type<-getClusterType()
-    cl <- parallel::makeCluster(nSlaves, type = cl_type)
-    response <- matrix(0, nrow=length(design[[1]]), ncol=5)
- 
-    #exporting all functions to cluster but only calcPPS and toMatrix are needed
-    ex <- Filter(function(x) is.function(get(x, asNamespace("IPO"))), 
-                 ls(asNamespace("IPO")))
-    if(identical(cl_type,"PSOCK")) {
-      message("Using PSOCK type cluster, this increases memory requirements.")
-      message("Reduce number of slaves if you have out of memory errors.")
-      message("Exporting variables to cluster...")
-      parallel::clusterEvalQ(cl, library("xcms"))
-      parallel::clusterExport(cl, ex, envir = asNamespace("IPO"))
     }
-    response <- parallel::parSapply(
-      cl = cl,
-      X = tasks,
-      FUN = optimizeSlaveCluster,
-      xcmsSet_parameters = xcms_design,
-      files = example_sample,
-      scanrange = scanrange,
-      isotopeIdentification = isotopeIdentification,
-      BPPARAM = BPPARAM,
-      ...,
-      USE.NAMES = FALSE
-    )
-    parallel::stopCluster(cl)
-  } else {
-    response <-
-      sapply(
+    
+    xcms_design <- combineParams(xcms_design, typ_params$no_optimization)   
+    tasks <- 1:nrow(design)  
+    
+    if(nSlaves > 1) {
+      # unload snow (if loaded) to prevent conflicts with usage of
+      # package 'parallel'
+      if('snow' %in% rownames(installed.packages()))
+        unloadNamespace("snow")
+      
+      cl_type<-getClusterType()
+      cl <- parallel::makeCluster(nSlaves, type = cl_type)
+      response <- matrix(0, nrow=length(design[[1]]), ncol=5)
+      
+      #exporting all functions to cluster but only calcPPS and toMatrix are needed
+      ex <- Filter(function(x) is.function(get(x, asNamespace("IPO"))), 
+                   ls(asNamespace("IPO")))
+      if(identical(cl_type,"PSOCK")) {
+        message("Using PSOCK type cluster, this increases memory requirements.")
+        message("Reduce number of slaves if you have out of memory errors.")
+        message("Exporting variables to cluster...")
+        parallel::clusterEvalQ(cl, library("xcms"))
+        parallel::clusterExport(cl, ex, envir = asNamespace("IPO"))
+      }
+      response <- parallel::parSapply(
+        cl = cl,
         X = tasks,
         FUN = optimizeSlaveCluster,
         xcmsSet_parameters = xcms_design,
@@ -814,22 +866,36 @@ xcmsSetExperimentsCluster <-
         scanrange = scanrange,
         isotopeIdentification = isotopeIdentification,
         BPPARAM = BPPARAM,
-        ...
+        ...,
+        USE.NAMES = FALSE
       )
+      parallel::stopCluster(cl)
+    } else {
+      response <-
+        sapply(
+          X = tasks,
+          FUN = optimizeSlaveCluster,
+          xcmsSet_parameters = xcms_design,
+          files = example_sample,
+          scanrange = scanrange,
+          isotopeIdentification = isotopeIdentification,
+          BPPARAM = BPPARAM,
+          ...
+        )
+    }
+    
+    response <- t(response)
+    colnames(response) <- c("exp", "num_peaks", "notLLOQP", "num_C13", "PPS")
+    response <- response[order(response[,1]),]
+    
+    ret <- list()
+    ret$params <- typ_params
+    ret$design <- design
+    ret$response <- response
+    
+    return(ret)
+    
   }
-  
-  response <- t(response)
-  colnames(response) <- c("exp", "num_peaks", "notLLOQP", "num_C13", "PPS")
-  response <- response[order(response[,1]),]
-
-  ret <- list()
-  ret$params <- typ_params
-  ret$design <- design
-  ret$response <- response
-
-  return(ret)
-
-}
 
 
 xcmsSetStatistic <-
@@ -843,53 +909,53 @@ xcmsSetStatistic <-
            iterator,  
            #nSlaves, 
            ...) {
-
-  params <- xcms_result$params
-  resp <- xcms_result$response[, "PPS"]
-  
-  
-  model <- createModel(xcms_result$design, params$to_optimize, resp)
-  xcms_result$model <- model                  
-  
-  max_settings <- getMaximumLevels(xcms_result$model)
-  
-  # plotting rms
-  tmp <- max_settings[1,-1] # first row without response
-  tmp[is.na(tmp)] <- 1 # if Na (i.e. -1, and 1), show +1
-  if (isTRUE(plot) & length(tmp) > 1) {
-    if (!is.null(subdir)) {
-      plotContours(
-        model = xcms_result$model,
-        maximum_slice = tmp,
-        plot_name = file.path(subdir, paste("rsm_", iterator, sep = ""))
-      )
-    } else if (is.null(subdir))  {
-      plotContours(xcms_result$model, tmp, plot_name = NULL)
+    
+    params <- xcms_result$params
+    resp <- xcms_result$response[, "PPS"]
+    
+    
+    model <- createModel(xcms_result$design, params$to_optimize, resp)
+    xcms_result$model <- model                  
+    
+    max_settings <- getMaximumLevels(xcms_result$model)
+    
+    # plotting rms
+    tmp <- max_settings[1,-1] # first row without response
+    tmp[is.na(tmp)] <- 1 # if Na (i.e. -1, and 1), show +1
+    if (isTRUE(plot) & length(tmp) > 1) {
+      if (!is.null(subdir)) {
+        plotContours(
+          model = xcms_result$model,
+          maximum_slice = tmp,
+          plot_name = file.path(subdir, paste("rsm_", iterator, sep = ""))
+        )
+      } else if (is.null(subdir))  {
+        plotContours(xcms_result$model, tmp, plot_name = NULL)
+      }
     }
+    
+    xcms_result$max_settings <- max_settings
+    
+    xcms_parameters <- 
+      as.list(decodeAll(max_settings[-1], params$to_optimize))      
+    xcms_parameters <- 
+      combineParams(xcms_parameters, params$no_optimization)
+    
+    if(!is.list(xcms_parameters))
+      xcms_parameters <- as.list(xcms_parameters)
+    
+    xset <-
+      calculateXcmsSet(
+        files = files,
+        xcmsSetParameters = xcms_parameters,
+        scanrange = scanrange,
+        task = 1,
+        BPPARAM = BPPARAM#,
+        #nSlaves = nSlaves
+      )
+    xcms_result$xset <- xset
+    xcms_result$PPS <- calcPPS(xset, isotopeIdentification, ...)  
+    
+    return(xcms_result)
   }
-	
-  xcms_result$max_settings <- max_settings
-  
-  xcms_parameters <- 
-    as.list(decodeAll(max_settings[-1], params$to_optimize))      
-  xcms_parameters <- 
-    combineParams(xcms_parameters, params$no_optimization)
-        
-  if(!is.list(xcms_parameters))
-     xcms_parameters <- as.list(xcms_parameters)
-  
-  xset <-
-    calculateXcmsSet(
-      files = files,
-      xcmsSetParameters = xcms_parameters,
-      scanrange = scanrange,
-      task = 1,
-      BPPARAM = BPPARAM#,
-      #nSlaves = nSlaves
-    )
-  xcms_result$xset <- xset
-  xcms_result$PPS <- calcPPS(xset, isotopeIdentification, ...)  
-
-  return(xcms_result)
-}
 
