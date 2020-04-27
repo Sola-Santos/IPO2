@@ -403,7 +403,7 @@ calculateXcmsSet <- function(files,
     #     scanrange   = scanrange#,
     #     #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
     #   )
-    s
+    
     cent.tab<-plyr::ldply(files[sample(1:length(files),min(3,length(files)))], function(file.j){
       raw<-xcms::xcmsRaw(filename = file.j,mslevel = 1)
       length(xcms::getScan(raw,length(raw@scantime)/2))>2
