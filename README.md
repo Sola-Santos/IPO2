@@ -1,4 +1,4 @@
-# IPO
+# IPO2 
 
 [![How long since the package was first in a released Bioconductor version (or is it in devel only).](https://bioconductor.org/shields/years-in-bioc/IPO.svg)](https://bioconductor.org/packages/IPO/)
 [![Percentile (top 5/20/50% or 'available') of downloads over last 6 full months. Comparison is done across all package categories (software, annotation, experiment).](http://bioconductor.org/shields/downloads/IPO.svg)](https://bioconductor.org/packages/stats/bioc/IPO/)
