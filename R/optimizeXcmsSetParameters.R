@@ -399,12 +399,12 @@ calculateXcmsSet <- function(files,
     #     fitgauss    = xcmsSetParameters$fitgauss[task],
     #     verbose.columns =
     #       xcmsSetParameters$verbose.columns[task],
-    #     BPPARAM = BPPARAM,
+    #     BPPARAM = BPPARAM,s
     #     scanrange   = scanrange#,
     #     #nSlaves     = nSlaves * xcmsSetParameters$nSlaves[task]
     #   )
-    
-    cent.tab<-plyr::ldply(files[sample(1:length(files),max(3,length(files)))], function(file.j){
+    s
+    cent.tab<-plyr::ldply(files[sample(1:length(files),min(3,length(files)))], function(file.j){
       raw<-xcms::xcmsRaw(filename = file.j,mslevel = 1)
       length(xcms::getScan(raw,length(raw@scantime)/2))>2
       quantile(diff(xcms::getScan(raw, length(raw@scantime)/2)[,"mz"]),.25)>0.025
