@@ -426,6 +426,8 @@ calculateXcmsSet <- function(files,
         MSnbase::smooth(method = "SavitzkyGolay") %>%
         MSnbase::pickPeaks()
       
+      msDat <- filterMsLevel(msDat, msLevel = 1)
+      
       cat('done!\n')   
       
       pwd<- xcms::CentWaveParam( peakwidth = c(xcmsSetParameters$min_peakwidth[task],
