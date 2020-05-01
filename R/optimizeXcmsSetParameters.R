@@ -371,6 +371,8 @@ calculateXcmsSet <- function(files,
                              task = 1,
                              BPPARAM = bpparam(),
                              nSlaves = 0) {
+  library(MSnbase)
+  
   if (nSlaves != 0) {
     warning("Use of xcmsSet-argument 'nSlaves'  is deprecated!",
             " Please use 'BPPARAM' instead.")
@@ -418,7 +420,12 @@ calculateXcmsSet <- function(files,
       
       cat('Centroiding data...')
       msDat<-MSnbase::readMSData(files,msLevel. = 1,mode = "onDisk")
-      msDat <-msDat %>% xcms::smooth(method='SavitzkyGolay') #%>% 
+      
+      # msDat <-msDat %>% xcms::smooth(method='SavitzkyGolay')  
+      msDat <-msDat %>%
+        MSnbase::smooth(method = "SavitzkyGolay") %>%
+        MSnbase::pickPeaks()
+      
       cat('done!\n')   
       
       pwd<- xcms::CentWaveParam( peakwidth = c(xcmsSetParameters$min_peakwidth[task],
